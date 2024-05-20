@@ -20,25 +20,23 @@ public class RequestQueue {
         @param request: Request object to be added to the queue
         Post-condition: The request is added to the queue
      */
-    public void put(Request request) {
-        synchronized (heap) {
-            heap.add(request);
-            int index = heap.size() - 1;
+    public synchronized void put(Request request) {
+        heap.add(request);
+        int index = heap.size() - 1;
 
-            while (index > 0) {
-                int parentIndex = (index - 1) / 2;
-                Request parent = heap.get(parentIndex);
-                if (request.compareTo(parent) <= 0) {
-                    break;
-                }
-                heap.set(index, parent);
-                index = parentIndex;
+        while (index > 0) {
+            int parentIndex = (index - 1) / 2;
+            Request parent = heap.get(parentIndex);
+            if (request.compareTo(parent) <= 0) {
+                break;
             }
-
-            heap.set(index, request);
-
-            heap.notify();
+            heap.set(index, parent);
+            index = parentIndex;
         }
+
+        heap.set(index, request);
+
+        this.notify();
     }
 
 
@@ -51,37 +49,35 @@ public class RequestQueue {
 
         @return: The next request from the queue. This method should block until a request is available. Return null if interrupted.
      */
-    public Request take() {
-        synchronized (heap) {
-            try {
-                while (heap.isEmpty()) heap.wait();
-            } catch (InterruptedException e) { return null; }
+    public synchronized Request take() {
+        try {
+            if (heap.isEmpty()) this.wait();
+        } catch (InterruptedException e) { return null; }
 
-            Request result = heap.get(0);
-            Request last = heap.remove(heap.size() - 1);
+        Request result = heap.get(0);
+        Request last = heap.remove(heap.size() - 1);
 
-            if (!heap.isEmpty()) {
-                heap.set(0, last);
-                int index = 0;
+        if (!heap.isEmpty()) {
+            heap.set(0, last);
+            int index = 0;
 
-                while (true) {
-                    int leftChildIndex = 2 * index + 1;
-                    if (leftChildIndex >= heap.size()) break;
+            while (true) {
+                int leftChildIndex = 2 * index + 1;
+                if (leftChildIndex >= heap.size()) break;
 
-                    int rightChildIndex = leftChildIndex + 1;
-                    int minChildIndex = rightChildIndex >= heap.size() || heap.get(leftChildIndex).compareTo(heap.get(rightChildIndex)) > 0 ? leftChildIndex : rightChildIndex;
+                int rightChildIndex = leftChildIndex + 1;
+                int minChildIndex = rightChildIndex >= heap.size() || heap.get(leftChildIndex).compareTo(heap.get(rightChildIndex)) > 0 ? leftChildIndex : rightChildIndex;
 
-                    if (last.compareTo(heap.get(minChildIndex)) >= 0) break;
+                if (last.compareTo(heap.get(minChildIndex)) >= 0) break;
 
-                    heap.set(index, heap.get(minChildIndex));
-                    index = minChildIndex;
-                }
-
-                heap.set(index, last);
+                heap.set(index, heap.get(minChildIndex));
+                index = minChildIndex;
             }
 
-            return result;
+            heap.set(index, last);
         }
+
+        return result;
     }
 
     /*
@@ -92,24 +88,22 @@ public class RequestQueue {
 
         @return: A sorted list of requests in the queue
      */
-    public List<Request> getQueue() {
-        synchronized (heap) {
-            List<Request> sortedHeap = new ArrayList<>(heap);
+    public synchronized List<Request> getQueue() {
+        List<Request> sortedHeap = new ArrayList<>(heap);
 
-            for (int i = sortedHeap.size() / 2 - 1; i >= 0; i--) {
-                heapify(sortedHeap, sortedHeap.size(), i);
-            }
-
-            for (int i = sortedHeap.size() - 1; i > 0; i--) {
-                Request temp = sortedHeap.get(0);
-                sortedHeap.set(0, sortedHeap.get(i));
-                sortedHeap.set(i, temp);
-
-                heapify(sortedHeap, i, 0);
-            }
-
-            return sortedHeap;
+        for (int i = sortedHeap.size() / 2 - 1; i >= 0; i--) {
+            heapify(sortedHeap, sortedHeap.size(), i);
         }
+
+        for (int i = sortedHeap.size() - 1; i > 0; i--) {
+            Request temp = sortedHeap.get(0);
+            sortedHeap.set(0, sortedHeap.get(i));
+            sortedHeap.set(i, temp);
+
+            heapify(sortedHeap, i, 0);
+        }
+
+        return sortedHeap;
     }
 
     private void heapify(List<Request> arr, int n, int i) {
